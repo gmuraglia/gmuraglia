@@ -1,0 +1,54 @@
+name: Redmine Daily Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekdays at 11:00 UTC (~08:00 ART if REPORT_TZ_OFFSET=-3)
+    - cron: '0 11 * * 1-5'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: |
+          npm ci || npm i
+
+      - name: Run Redmine report
+        env:
+          REDMINE_BASE_URL: ${{ secrets.REDMINE_BASE_URL }}
+          REDMINE_API_KEY: ${{ secrets.REDMINE_API_KEY }}
+          PROJECT_IDS: ${{ secrets.PROJECT_IDS }}
+          REPORT_TZ_OFFSET: ${{ secrets.REPORT_TZ_OFFSET }}
+          DAYS_BACK: '1'
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DUE_SOON_DAYS: ${{ secrets.DUE_SOON_DAYS }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_SUBJECT_PREFIX: ${{ secrets.EMAIL_SUBJECT_PREFIX }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          node -v
+          node scripts/redmine-report/report.js | tee redmine_report.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: redmine-report
+          path: redmine_report.txt
+
